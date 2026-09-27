@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Security Audit Dashboard — OWASP Benchmark Java v1.2</title>
+<style>
+/* ── Reset & Base ─────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07090f;--surface:#0f1420;--surface2:#161d2e;--surface3:#1c2540;
+  --border:#1e2d4a;--border2:#263557;
+  --text:#e2e8f0;--muted:#7a8fb5;--faint:#3d507a;
+  --accent:#38bdf8;--accent2:#818cf8;--accent3:#34d399;
+  --crit:#f43f5e;--high:#fb923c;--med:#fbbf24;--low:#4ade80;--info:#60a5fa;
+  --apache:#22c55e;--mit:#06b6d4;--bsd:#a78bfa;--lgpl:#f59e0b;--gpl:#f43f5e;--cddl:#94a3b8;
+  --r1:#f43f5e;--r2:#fb923c;--r3:#fbbf24;--r4:#4ade80;--r5:#38bdf8;
+  --r6:#818cf8;--r7:#e879f9;--r8:#34d399;--r9:#67e8f9;--r10:#fcd34d;--r11:#c084fc;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;line-height:1.6;min-height:100vh}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:'Cascadia Code','Fira Code',monospace;font-size:.82em;background:#0a0e1a;border:1px solid var(--border2);border-radius:3px;padding:1px 5px;color:#7dd3fc}
+
+/* ── Layout ───────────────────────────────────────────────────── */
+.page{max-width:1280px;margin:0 auto;padding:0 20px 60px}
+
+/* ── Header ───────────────────────────────────────────────────── */
+header{
+  background:linear-gradient(135deg,#0c1a3a 0%,#0a2040 40%,#0c0f20 100%);
+  border-bottom:1px solid var(--border2);
+  padding:40px 48px 32px;
+  position:relative;overflow:hidden;
+}
+header::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 60% 80% at 80% 50%,rgba(56,189,248,.06) 0%,transparent 70%);
+  pointer-events:none;
+}
+.header-inner{max-width:1280px;margin:0 auto;position:relative;z-index:1}
+header h1{font-size:1.9rem;font-weight:700;letter-spacing:-.4px;color:#f0f9ff}
+header h1 span{color:var(--accent)}
+.header-sub{margin-top:6px;color:var(--muted);font-size:.9rem}
+.meta-strip{display:flex;flex-wrap:wrap;gap:20px;margin-top:24px}
+.meta-pill{background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;padding:8px 16px;font-size:.8rem}
+.meta-pill .k{color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-size:.7rem}
+.meta-pill .v{font-weight:600;color:#e0f2fe;font-size:.9rem}
+
+/* ── Nav ──────────────────────────────────────────────────────── */
+nav{background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+nav ul{max-width:1280px;margin:0 auto;display:flex;list-style:none;padding:0 20px;overflow-x:auto}
+nav li a{display:block;padding:12px 16px;color:var(--muted);font-size:.82rem;font-weight:500;white-space:nowrap;border-bottom:2px solid transparent;transition:color .15s,border-color .15s}
+nav li a:hover,nav li a.active{color:var(--accent);border-bottom-color:var(--accent);text-decoration:none}
+
+/* ── Section ──────────────────────────────────────────────────── */
+section{padding-top:48px}
+.section-heading{display:flex;align-items:center;gap:12px;margin-bottom:24px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.section-heading h2{font-size:1.2rem;font-weight:700;color:#e0f2fe}
+.section-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0}
+
+/* ── Summary Cards ────────────────────────────────────────────── */
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:32px}
+.s-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:18px 20px;text-align:center;position:relative;overflow:hidden}
+.s-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--card-color,var(--accent))}
+.s-card .num{font-size:2.2rem;font-weight:800;line-height:1;color:var(--card-color,var(--accent));font-variant-numeric:tabular-nums}
+.s-card .lbl{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-top:6px}
+.s-card .sub{font-size:.76rem;color:var(--faint);margin-top:3px}
+
+/* ── Risk Cards ───────────────────────────────────────────────── */
+.risk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:16px}
+.risk-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.risk-card-head{display:flex;align-items:flex-start;gap:12px;padding:16px 18px 14px;border-bottom:1px solid var(--border)}
+.risk-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:4px;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.8px;white-space:nowrap;flex-shrink:0;margin-top:2px}
+.badge-CRITICAL{background:rgba(244,63,94,.18);color:#fda4af;border:1px solid rgba(244,63,94,.4)}
+.badge-HIGH    {background:rgba(251,146,60,.16);color:#fdba74;border:1px solid rgba(251,146,60,.35)}
+.badge-MEDIUM  {background:rgba(251,191,36,.14);color:#fde68a;border:1px solid rgba(251,191,36,.3)}
+.badge-LOW     {background:rgba(74,222,128,.12);color:#86efac;border:1px solid rgba(74,222,128,.28)}
+.badge-INFO    {background:rgba(96,165,250,.12);color:#93c5fd;border:1px solid rgba(96,165,250,.28)}
+.risk-title{font-size:.88rem;font-weight:600;color:var(--text);line-height:1.4}
+.risk-cwe{font-size:.72rem;color:var(--muted);margin-top:3px;font-family:monospace}
+.risk-body{padding:14px 18px;font-size:.82rem;color:var(--muted);line-height:1.55}
+.risk-body strong{color:var(--text);font-weight:600}
+.risk-foot{padding:10px 18px;background:rgba(0,0,0,.15);border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:.74rem;color:var(--faint)}
+.risk-foot code{font-size:.72rem}
+
+/* ── Tables ───────────────────────────────────────────────────── */
+.tbl-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:.82rem}
+thead tr{background:var(--surface3)}
+th{padding:11px 16px;text-align:left;font-size:.72rem;color:var(--accent);text-transform:uppercase;letter-spacing:.8px;font-weight:700;white-space:nowrap}
+td{padding:10px 16px;border-top:1px solid var(--border);vertical-align:middle;color:var(--text)}
+tr:hover td{background:rgba(255,255,255,.02)}
+.license-tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:.7rem;font-weight:700;letter-spacing:.4px}
+.l-apache{background:rgba(34,197,94,.15);color:#86efac;border:1px solid rgba(34,197,94,.3)}
+.l-mit   {background:rgba(6,182,212,.15);color:#67e8f9;border:1px solid rgba(6,182,212,.3)}
+.l-bsd   {background:rgba(167,139,250,.15);color:#c4b5fd;border:1px solid rgba(167,139,250,.3)}
+.l-lgpl  {background:rgba(245,158,11,.15);color:#fde68a;border:1px solid rgba(245,158,11,.3)}
+.l-gpl   {background:rgba(244,63,94,.15);color:#fda4af;border:1px solid rgba(244,63,94,.3)}
+.l-cddl  {background:rgba(148,163,184,.12);color:#cbd5e1;border:1px solid rgba(148,163,184,.25)}
+.l-w3c   {background:rgba(129,140,248,.12);color:#c7d2fe;border:1px solid rgba(129,140,248,.25)}
+.risk-tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:.7rem;font-weight:700}
+.r-permissive{background:rgba(34,197,94,.12);color:#86efac;border:1px solid rgba(34,197,94,.25)}
+.r-weak-copyleft{background:rgba(245,158,11,.12);color:#fde68a;border:1px solid rgba(245,158,11,.25)}
+.r-copyleft{background:rgba(244,63,94,.12);color:#fda4af;border:1px solid rgba(244,63,94,.25)}
+.r-dual  {background:rgba(148,163,184,.10);color:#cbd5e1;border:1px solid rgba(148,163,184,.22)}
+.r-eol   {background:rgba(251,146,60,.12);color:#fdba74;border:1px solid rgba(251,146,60,.25)}
+.status-ok{color:#4ade80}
+.status-warn{color:#fbbf24}
+.status-err{color:#f43f5e}
+
+/* ── Charts ───────────────────────────────────────────────────── */
+.charts-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:20px;margin-top:8px}
+.chart-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:20px 22px}
+.chart-title{font-size:.82rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:18px}
+/* Bar chart */
+.bar-chart{display:flex;flex-direction:column;gap:10px}
+.bar-row{display:grid;grid-template-columns:130px 1fr 52px;align-items:center;gap:8px}
+.bar-label{font-size:.78rem;color:var(--text);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-track{height:16px;background:rgba(255,255,255,.04);border-radius:4px;overflow:hidden;position:relative}
+.bar-fill{height:100%;border-radius:4px;transition:width .4s ease}
+.bar-val{font-size:.76rem;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+/* Donut chart (pure CSS) */
+.donut-wrap{display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+.donut{position:relative;width:140px;height:140px;flex-shrink:0}
+.donut svg{transform:rotate(-90deg)}
+.donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.donut-center .dc-num{font-size:1.6rem;font-weight:800;line-height:1;color:var(--text)}
+.donut-center .dc-lbl{font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+.legend{display:flex;flex-direction:column;gap:7px;flex:1;min-width:140px}
+.legend-row{display:flex;align-items:center;gap:8px;font-size:.78rem}
+.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.legend-name{color:var(--text);flex:1}
+.legend-pct{color:var(--muted);font-variant-numeric:tabular-nums}
+/* Stacked progress for TP/TN */
+.stacked-rows{display:flex;flex-direction:column;gap:12px}
+.stacked-row{display:grid;grid-template-columns:110px 1fr 80px;align-items:center;gap:8px}
+.stacked-label{font-size:.78rem;color:var(--text)}
+.stacked-track{height:14px;border-radius:3px;background:rgba(255,255,255,.04);overflow:hidden;display:flex}
+.stacked-tp{height:100%;background:var(--crit);opacity:.8}
+.stacked-tn{height:100%;background:var(--low);opacity:.7}
+.stacked-val{font-size:.72rem;color:var(--muted);text-align:right}
+
+/* ── CWE Detail Table ─────────────────────────────────────────── */
+.cwe-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-top:8px}
+.cwe-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 16px;display:flex;gap:12px;align-items:flex-start}
+.cwe-pill{background:var(--surface3);border:1px solid var(--border2);border-radius:6px;padding:8px 10px;text-align:center;flex-shrink:0;min-width:72px}
+.cwe-pill .cnum{font-size:.72rem;color:var(--accent);font-weight:700;font-family:monospace}
+.cwe-pill .ctotal{font-size:1.3rem;font-weight:800;line-height:1.1;color:var(--text);margin-top:2px}
+.cwe-detail .cname{font-size:.84rem;font-weight:600;color:var(--text)}
+.cwe-detail .ccategory{font-size:.73rem;color:var(--muted);margin-top:1px}
+.cwe-detail .cstats{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap}
+.cstat{font-size:.7rem;padding:2px 7px;border-radius:3px}
+.cstat-tp{background:rgba(244,63,94,.12);color:#fda4af;border:1px solid rgba(244,63,94,.25)}
+.cstat-tn{background:rgba(74,222,128,.10);color:#86efac;border:1px solid rgba(74,222,128,.22)}
+.mini-bar{height:5px;border-radius:2px;background:rgba(255,255,255,.06);overflow:hidden;margin-top:6px}
+.mini-bar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--crit),var(--high))}
+
+/* ── Infra Findings ───────────────────────────────────────────── */
+.finding-list{display:flex;flex-direction:column;gap:12px}
+.finding{background:var(--surface2);border:1px solid var(--border);border-radius:8px;display:grid;grid-template-columns:auto 1fr auto;gap:0;overflow:hidden}
+.finding-sev{width:48px;display:flex;align-items:center;justify-content:center;writing-mode:vertical-rl;text-orientation:mixed;font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;background:var(--sev-bg,rgba(0,0,0,.2));color:var(--sev-col,#fff)}
+.finding-body{padding:14px 16px}
+.finding-id{font-size:.68rem;color:var(--muted);font-family:monospace;margin-bottom:4px}
+.finding-title{font-size:.88rem;font-weight:600;color:var(--text)}
+.finding-desc{font-size:.8rem;color:var(--muted);margin-top:6px;line-height:1.5}
+.finding-fix{font-size:.78rem;color:var(--accent3);margin-top:6px}
+.finding-meta{padding:14px 16px;border-left:1px solid var(--border);display:flex;flex-direction:column;gap:6px;min-width:110px;justify-content:center;align-items:flex-end}
+.fmeta-k{font-size:.64rem;color:var(--faint);text-transform:uppercase;letter-spacing:.5px}
+.fmeta-v{font-size:.76rem;color:var(--muted);text-align:right}
+
+/* ── Footer ───────────────────────────────────────────────────── */
+footer{margin-top:60px;padding:24px;background:var(--surface);border-top:1px solid var(--border);text-align:center;font-size:.76rem;color:var(--faint)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <h1>🔐 Security Audit Dashboard — <span>OWASP Benchmark Java v1.2</span></h1>
+    <div class="header-sub">Supply Chain · License Compliance · CWE Vulnerability Mapping · Infrastructure Risk</div>
+    <div class="meta-strip">
+      <div class="meta-pill"><div class="k">Artifact</div><div class="v">org.owasp:benchmark:1.2</div></div>
+      <div class="meta-pill"><div class="k">Packaging</div><div class="v">WAR → Tomcat 9/10 HTTPS:8443</div></div>
+      <div class="meta-pill"><div class="k">Java Target</div><div class="v">JDK 8 bytecode</div></div>
+      <div class="meta-pill"><div class="k">License</div><div class="v">GPL-2.0-only</div></div>
+      <div class="meta-pill"><div class="k">Test Cases</div><div class="v">2,740 Servlets</div></div>
+      <div class="meta-pill"><div class="k">Dependencies</div><div class="v">27 declared (pom.xml)</div></div>
+      <div class="meta-pill"><div class="k">SBOM</div><div class="v">SPDX 2.3</div></div>
+      <div class="meta-pill"><div class="k">Prepared by</div><div class="v">CIDE Orchestrator + Static Analysis Engine v1.0.0</div></div>
+    </div>
+  </div>
+</header>
+
+<nav>
+  <ul>
+    <li><a href="#summary">Summary</a></li>
+    <li><a href="#risks">Risk Findings</a></li>
+    <li><a href="#sast">Static Analysis (47)</a></li>
+    <li><a href="#licenses">License Audit</a></li>
+    <li><a href="#cwe">CWE Map</a></li>
+    <li><a href="#charts">Charts</a></li>
+    <li><a href="#sbom-table">SBOM Table</a></li>
+  </ul>
+</nav>
+
+<div class="page">
+
+<!-- ═══════════════════════════ SUMMARY ════════════════════════════════ -->
+<section id="summary">
+  <div class="section-heading">
+    <div class="section-icon" style="background:rgba(56,189,248,.12);color:var(--accent)">📊</div>
+    <h2>Executive Summary</h2>
+  </div>
+
+  <div class="summary-grid">
+    <div class="s-card" style="--card-color:var(--crit)">
+      <div class="num">4</div><div class="lbl">Critical Findings</div><div class="sub">SAST-verified</div>
+    </div>
+    <div class="s-card" style="--card-color:var(--high)">
+      <div class="num">3</div><div class="lbl">High Findings</div><div class="sub">Supply chain + code</div>
+    </div>
+    <div class="s-card" style="--card-color:var(--med)">
+      <div class="num">28</div><div class="lbl">Medium Findings</div><div class="sub">Exception handling + config</div>
+    </div>
+    <div class="s-card" style="--card-color:var(--low)">
+      <div class="num">12</div><div class="lbl">Low / Info</div><div class="sub">Resource + design</div>
+    </div>
+    <div class="s-card" style="--card-color:#818cf8">
+      <div class="num">27</div><div class="lbl">SBOM Packages</div><div class="sub">SPDX 2.3</div>
+    </div>
+    <div class="s-card" style="--card-color:#34d399">
+      <div class="num">11</div><div class="lbl">CWE Categories</div><div class="sub">2,740 test vectors</div>
+    </div>
+    <div class="s-card" style="--card-color:#f59e0b">
+      <div class="num">2</div><div class="lbl">Copyleft Licenses</div><div class="sub">GPL-2 + LGPL-2.1</div>
+    </div>
+    <div class="s-card" style="--card-color:var(--crit)">
+      <div class="num">1,415</div><div class="lbl">True Positives</div><div class="sub">Exploitable test cases</div>
+    </div>
+    <div class="s-card" style="--card-color:var(--low)">
+      <div class="num">1,325</div><div class="lbl">True Negatives</div><div class="sub">Safe test cases</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ RISK FINDINGS ══════════════════════════ -->
+<section id="risks">
+  <div class="section-heading">
+    <div class="section-icon" style="background:rgba(244,63,94,.12);color:var(--crit)">🚨</div>
+    <h2>Risk Findings — Infrastructure &amp; Supply Chain</h2>
+  </div>
+
+  <div class="risk-grid">
+
+    <!-- C1 -->
+    <div class="risk-card">
+      <div class="risk-card-head">
+        <span class="risk-badge badge-CRITICAL">Critical</span>
+        <div>
+          <div class="risk-title">Non-Thread-Safe Shared JDBC Connection</div>
+          <div class="risk-cwe">CWE-362 — Concurrent Execution using Shared Resource with Improper Synchronization</div>
+        </div>
+      </div>
+      <div class="risk-body">
+        <strong>DatabaseHelper.java:36</strong> declares <code>private static Connection conn</code> — a single <code>java.sql.Connection</code> shared across all concurrent servlet invocations. The JNDI pool is configured for <code>maxTotal=12</code> connections, but <code>getSqlConnection()</code> lazy-initialises and caches only one, abandoning the remaining 11 slots. Any concurrent DAST scan or multi-threaded crawler will cause transaction interleaving and silent data corruption.
+      </div>
+      <div class="risk-foot">
+        <span>Fix: checkout per-request with <code>DataSource.getConnection()</code> in try-with-resources</span>
+        <code>DatabaseHelper.java:36,157</code>
+      </div>
+    </div>
+
+    <!-- C2 -->
+    <div class="risk-card">
+      <div class="risk-card-head">
+        <span class="risk-badge badge-CRITICAL">Critical</span>
+        <div>
+          <div class="risk-title">Keystore File + Hardcoded Password Committed to SCM</div>
+          <div class="risk-cwe">CWE-321 — Use of Hard-coded Cryptographic Key</div>
+        </div>
+      </div>
+      <div class="risk-body">
+        The file <code>.keystore</code> (2,233 bytes, self-signed) is tracked by git. The Cargo deployment configuration in <code>pom.xml:159</code> hardcodes <code>keystorePass=changeit</code>. Additionally, <code>SonarReport.java:25</code> hardcodes <code>SONAR_PASSWORD = "P4ssword!!!!"</code>. Three independent secrets committed in plaintext across two files.
+      </div>
+      <div class="risk-foot">
+        <span>Fix: add <code>.keystore</code> to <code>.gitignore</code>; externalize passwords to env vars</span>
+        <code>pom.xml:159 · SonarReport.java:25</code>
+      </div>
+    </div>
+
+    <!-- H1 -->
+    <div class="risk-card">
+      <div class="risk-card-head">
+        <span class="risk-badge badge-HIGH">High</span>
+        <div>
+          <div class="risk-title">CVE-2023-33201 — BouncyCastle LDAP Injection in X.500 Parsing</div>
+          <div class="risk-cwe">CVE-2023-33201 · CWE-90 — LDAP Injection</div>
+        </div>
+      </div>
+      <div class="risk-body">
+        <strong>bcprov-jdk15on:1.70</strong> is affected by CVE-2023-33201. An attacker controlling a certificate subject/issuer DN can inject LDAP filter operators via the <code>X500Name</code> class. CVSS 3.1 score: <strong>5.3 (Medium)</strong>. Fixed in BouncyCastle ≥ 1.74. The benchmark uses BouncyCastle as a JCE provider (loaded at startup via <code>Security.addProvider()</code> in <code>Startup.java</code>).
+      </div>
+      <div class="risk-foot">
+        <span>Fix: upgrade to <code>bcprov-jdk18on:1.78+</code></span>
+        <code>pom.xml:793</code>
+      </div>
+    </div>
+
+    <!-- H2 -->
+    <div class="risk-card">
+      <div class="risk-card-head">
+        <span class="risk-badge badge-HIGH">High</span>
+        <div>
+          <div class="risk-title">TLSv1-Only SSL Factory + Disabled Hostname Verification</div>
+          <div class="risk-cwe">CWE-326 · CWE-297 — Inadequate Encryption Strength / Certificate Validation Bypass</div>
+        </div>
+      </div>
+      <div class="risk-body">
+        <code>Utils.getSSLFactory()</code> at line 425 constrains the SSL socket factory to <code>new String[]{"TLSv1"}</code> and uses <code>NoopHostnameVerifier.INSTANCE</code>. TLSv1 is prohibited by RFC 8996 and disabled by default in Java 11+ (<code>jdk.tls.disabledAlgorithms</code>). The crawler (<code>runCrawler.sh</code>) will throw <code>SSLHandshakeException</code> on modern JVMs. NoopHostnameVerifier allows MITM attacks on the crawling infrastructure.
+      </div>
+      <div class="risk-foot">
+        <span>Fix: use <code>{"TLSv1.2","TLSv1.3"}</code>; use <code>DefaultHostnameVerifier</code></span>
+        <code>Utils.java:425</code>
+      </div>
+    </div>
+
+    <!-- H3 -->
+    <div class="risk-card">
+      <div class="risk-card-head">
+        <span class="risk-badge badge-HIGH">High</span>
+        <div>
+          <div class="risk-title">EOL Dependency: commons-dbcp 1.4 (Last Release 2013)</div>
+          <div class="risk-cwe">CWE-1104 — Use of Unmaintained Third Party Components</div>
+        </div>
+      </div>
+      <div class="risk-body">
+        <strong>commons-dbcp:1.4</strong> reached end-of-life in 2013. It has known connection pool exhaustion bugs, resource leak vulnerabilities, and no security patch channel. The benchmark uses it as the <code>BasicDataSource</code> bean supplying the Spring <code>JdbcTemplate</code>. Successor <code>commons-dbcp2</code> (now at 2.12.x) has a compatible API and active maintenance.
+      </div>
+      <div class="risk-foot">
+        <span>Fix: migrate to <code>commons-dbcp2:2.12.0</code> or HikariCP 5.x</span>
+        <code>pom.xml:645</code>
+      </div>
+    </div>
+
+    <!-- H4 -->
+    <div class="risk-card">
+      <div class="risk-card-head">
+        <span class="risk-badge badge-HIGH">High</span>
+        <div>
+          <div class="risk-title">EOL Dependency: Jersey 1.19.4 / JAX-RS 1.x (EOL 2014)</div>
+          <div class="risk-cwe">CWE-1104 — Use of Unmaintained Third Party Components</div>
+        </div>
+      </div>
+      <div class="risk-body">
+        <strong>jersey-servlet:1.19.4</strong> implements JAX-RS 1.x and has been unsupported since 2014. The pom.xml acknowledges it is "unused declared" but required at runtime. No security patches are available for the 1.x branch. The successor is <code>jersey-container-servlet-core:3.x</code> (Jakarta EE).
+      </div>
+      <div class="risk-foot">
+        <span>Fix: upgrade to <code>jersey-container-servlet:3.1.x</code> or remove if truly unused</span>
+        <code>pom.xml:633</code>
+      </div>
+    </div>
+
+    <!-- M1 -->
+    <div class="risk-card">
+      <div class="risk-card-head">
+        <span class="risk-badge badge-MEDIUM">Medium</span>
+        <div>
+          <div class="risk-title">EOL Dependency: Hibernate ORM 3.6.10.Final (EOL ~2012)</div>
+          <div class="risk-cwe">CWE-1104 · LGPL-2.1 Copyleft Risk</div>
+        </div>
+      </div>
+      <div class="risk-body">
+        Hibernate 3.6.x is a deeply EOL branch (final release ~2012). It carries the <strong>LGPL-2.1-only</strong> license — the only copyleft dependency in the WAR. Although dynamic linking via classpath is generally LGPL-compatible, any static bundling or redistribution of a modified Hibernate requires source disclosure. Additionally, <code>hibernate-classic.Session</code> API used in <code>HibernateUtil</code> was deprecated in Hibernate 3.x.
+      </div>
+      <div class="risk-foot">
+        <span>Fix: upgrade to Hibernate ORM 6.x (Jakarta Persistence 3.1, Apache-2.0)</span>
+        <code>pom.xml:798</code>
+      </div>
+    </div>
+
+    <!-- M2 -->
+    <div class="risk-card">
+      <div class="risk-card-head">
+        <span class="risk-badge badge-MEDIUM">Medium</span>
+        <div>
+          <div class="risk-title">EOL Dependency: commons-lang 2.6 (Final Release 2011)</div>
+          <div class="risk-cwe">CWE-1104 — Use of Unmaintained Third Party Components</div>
+        </div>
+      </div>
+      <div class="risk-body">
+        <strong>commons-lang:2.6</strong> final release was in 2011. The active successor is <code>org.apache.commons:commons-lang3</code> (currently 3.17.x). Unlike commons-dbcp, the package name changes from <code>org.apache.commons.lang.*</code> to <code>org.apache.commons.lang3.*</code>, requiring source-level migration.
+      </div>
+      <div class="risk-foot">
+        <span>Fix: migrate to <code>commons-lang3:3.17.0</code></span>
+        <code>pom.xml:657</code>
+      </div>
+    </div>
+
+    <!-- M3 -->
+    <div class="risk-card">
+      <div class="risk-card-head">
+        <span class="risk-badge badge-MEDIUM">Medium</span>
+        <div>
+          <div class="risk-title">LDAPManager Exception Swallowing in Constructor</div>
+          <div class="risk-cwe">CWE-390 — Detection of Error Condition Without Action</div>
+        </div>
+      </div>
+      <div class="risk-body">
+        <code>LDAPManager.java:52</code> catches <code>NamingException</code> with only a <code>System.out.println</code> and continues with <code>ctx = null</code>. Every subsequent LDAP call will throw <code>NullPointerException</code> instead of a meaningful diagnostic, masking the root cause and causing all 59 LDAP injection test cases to produce undifferentiated errors when ApacheDS is unavailable.
+      </div>
+      <div class="risk-foot">
+        <span>Fix: propagate exception; add null-guard to every method using <code>ctx</code></span>
+        <code>LDAPManager.java:47-55</code>
+      </div>
+    </div>
+
+    <!-- M4 -->
+    <div class="risk-card">
+      <div class="risk-card-head">
+        <span class="risk-badge badge-MEDIUM">Medium</span>
+        <div>
+          <div class="risk-title">SQL Errors Exposed to HTTP Clients</div>
+          <div class="risk-cwe">CWE-209 — Generation of Error Message Containing Sensitive Information</div>
+        </div>
+      </div>
+      <div class="risk-body">
+        <code>DatabaseHelper.java:42</code> declares <code>public static final boolean hideSQLErrors = false</code>. When set to false, all <code>SQLException</code> stack traces (including table names, column names, SQL syntax) are propagated as <code>ServletException</code> and rendered to HTTP clients. Confirmed by test case pattern: <code>if (DatabaseHelper.hideSQLErrors) { ... } else throw new ServletException(e)</code>.
+      </div>
+      <div class="risk-foot">
+        <span>Fix: set <code>hideSQLErrors = true</code> in non-benchmark deployments</span>
+        <code>DatabaseHelper.java:42</code>
+      </div>
+    </div>
+
+    <!-- M5 -->
+    <div class="risk-card">
+      <div class="risk-card-head">
+        <span class="risk-badge badge-MEDIUM">Medium</span>
+        <div>
+          <div class="risk-title">JAXB Uses Legacy javax.xml.bind Namespace (Not Jakarta)</div>
+          <div class="risk-cwe">Technical Debt — Jakarta EE 9+ Incompatibility</div>
+        </div>
+      </div>
+      <div class="risk-body">
+        <code>jaxb-api:2.3.1</code> and <code>jaxb-impl:2.3.9</code> use the <code>javax.xml.bind</code> namespace. Jakarta EE 9+ renamed this to <code>jakarta.xml.bind</code>. Any future migration to Spring 6.x, Hibernate 6.x, or Jakarta EE 10 will require upgrading to <code>jakarta.xml.bind-api:4.0.x</code> simultaneously — a package-rename migration affecting all JAXB-annotated classes (<code>Person.java</code>, <code>XMLMessage.java</code>).
+      </div>
+      <div class="risk-foot">
+        <span>Fix: migrate to <code>jakarta.xml.bind-api:4.0.2</code> with Jakarta EE upgrade</span>
+        <code>pom.xml:619-627</code>
+      </div>
+    </div>
+
+    <!-- L1 -->
+    <div class="risk-card">
+      <div class="risk-card-head">
+        <span class="risk-badge badge-LOW">Low</span>
+        <div>
+          <div class="risk-title">api-ldap-model Pinned Below api-ldap-schema-data (Version Skew)</div>
+          <div class="risk-cwe">Supply Chain Risk — Inconsistent dependency versions</div>
+        </div>
+      </div>
+      <div class="risk-body">
+        <code>api-ldap-model</code> is pinned at <strong>2.1.7</strong> while <code>api-ldap-schema-data</code> uses <strong>2.1.8</strong> (resolved from the <code>${version.apache.api-ldap}</code> property). The comment in pom.xml explains the pin exists due to upstream bug DIRAPI-433. This version skew between two tightly coupled Apache Directory API modules is a latent compatibility risk that must be revisited when DIRAPI-433 is resolved.
+      </div>
+      <div class="risk-foot">
+        <span>Monitor: https://issues.apache.org/jira/browse/DIRAPI-433</span>
+        <code>pom.xml:671-680</code>
+      </div>
+    </div>
+
+    <!-- L2 -->
+    <div class="risk-card">
+      <div class="risk-card-head">
+        <span class="risk-badge badge-LOW">Low</span>
+        <div>
+          <div class="risk-title">Java 8 Bytecode Target vs. Build-Time Java 11+ Requirement</div>
+          <div class="risk-cwe">Compatibility Risk — Runtime/compile-time mismatch</div>
+        </div>
+      </div>
+      <div class="risk-body">
+        The Maven enforcer requires Java 8 runtime (<code>requireJavaVersion=${java.target}</code>) but the Spotless plugin (Google Java Format 1.17.0) and the enforcer's <code>enforceBytecodeVersion</code> check require Java 11+ to run. The resulting WAR targets Java 8 class files but cannot be built on Java 8 alone — a split requirement that may confuse CI environments or build containers.
+      </div>
+      <div class="risk-foot">
+        <span>Fix: update <code>java.target</code> to 11 or 17; drop Java 8 bytecode requirement</span>
+        <code>pom.xml:982-995</code>
+      </div>
+    </div>
+
+    <!-- L3 -->
+    <div class="risk-card">
+      <div class="risk-card-head">
+        <span class="risk-badge badge-INFO">Info</span>
+        <div>
+          <div class="risk-title">Spring Framework 5.x / EOL November 2024</div>
+          <div class="risk-cwe">CWE-1104 — Approaching EOL</div>
+        </div>
+      </div>
+      <div class="risk-body">
+        Spring Framework 5.3.x reached end-of-OSS-support in November 2024. The pom.xml declares <code>spring-*:5.3.39</code> (the final 5.3 release). Security patches for Spring 5.x will only be available to commercial Spring support subscribers. Spring 6.x requires a Jakarta EE namespace migration (<code>javax.*</code> → <code>jakarta.*</code>) — the same migration chain that affects JAXB, Servlet API, and Hibernate.
+      </div>
+      <div class="risk-foot">
+        <span>Plan: Jakarta EE 10 namespace migration required for Spring 6.x upgrade</span>
+        <code>pom.xml:830-858</code>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════ SAST SECTION ═══════════════════════════ -->
+<section id="sast">
+  <div class="section-heading">
+    <div class="section-icon" style="background:rgba(129,140,248,.12);color:var(--accent2)">🔬</div>
+    <h2>Source-Level Static Analysis — 47 Findings (CIDE Engine v1.0.0)</h2>
+  </div>
+
+  <p style="color:var(--muted);margin-bottom:20px;font-size:.85rem">
+    13 rules executed against infrastructure source files only (<code>helpers/</code>, <code>report/</code>, <code>pom.xml</code>, <code>.keystore</code>).
+    Test code (<code>testcode/</code>) is excluded — its use of weak algorithms is intentional by design.
+    All findings are grounded in line-level evidence; no speculative results are included.
+  </p>
+
+  <!-- Finding distribution bar -->
+  <div style="display:flex;gap:0;border-radius:6px;overflow:hidden;height:28px;margin-bottom:28px">
+    <div style="width:8.5%;background:var(--crit);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;color:#fff">4 Critical</div>
+    <div style="width:6.4%;background:var(--high);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;color:#fff">3 High</div>
+    <div style="width:59.6%;background:var(--med);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;color:#000">28 Medium</div>
+    <div style="width:25.5%;background:var(--low);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;color:#000">12 Low</div>
+  </div>
+
+  <!-- File hotspot table -->
+  <div class="tbl-wrap" style="margin-bottom:28px">
+    <table>
+      <thead>
+        <tr><th>File</th><th>Total Findings</th><th>Critical</th><th>High</th><th>Medium</th><th>Low</th><th>Primary CWEs</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>Utils.java</code></td><td><strong>20</strong></td><td>0</td><td>2</td><td>8</td><td>9</td><td>CWE-326, CWE-297, CWE-390, CWE-327, CWE-772</td></tr>
+        <tr><td><code>DatabaseHelper.java</code></td><td><strong>7</strong></td><td>1</td><td>0</td><td>5</td><td>1</td><td>CWE-362, CWE-390, CWE-209, CWE-400</td></tr>
+        <tr><td><code>HibernateUtil.java</code></td><td><strong>5</strong></td><td>0</td><td>0</td><td>5</td><td>0</td><td>CWE-390</td></tr>
+        <tr><td><code>PropertiesManager.java</code></td><td><strong>4</strong></td><td>0</td><td>0</td><td>4</td><td>0</td><td>CWE-390</td></tr>
+        <tr><td><code>LDAPManager.java</code></td><td><strong>3</strong></td><td>0</td><td>0</td><td>3</td><td>0</td><td>CWE-390</td></tr>
+        <tr><td><code>pom.xml</code></td><td><strong>1</strong></td><td>1</td><td>0</td><td>0</td><td>0</td><td>CWE-321</td></tr>
+        <tr><td><code>SonarReport.java</code></td><td><strong>1</strong></td><td>1</td><td>0</td><td>0</td><td>0</td><td>CWE-798</td></tr>
+        <tr><td><code>.keystore</code></td><td><strong>1</strong></td><td>1</td><td>0</td><td>0</td><td>0</td><td>CWE-321</td></tr>
+        <tr><td><code>LDAPServer.java, Startup.java, ThingFactory.java</code></td><td><strong>3</strong></td><td>0</td><td>0</td><td>3</td><td>0</td><td>CWE-390</td></tr>
+        <tr><td><code>ExpressionEvaluator.java</code></td><td><strong>1</strong></td><td>0</td><td>0</td><td>0</td><td>1</td><td>CWE-561</td></tr>
+        <tr><td><code>DataBaseServer.java</code></td><td><strong>1</strong></td><td>0</td><td>0</td><td>0</td><td>1</td><td>CWE-501</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Taint source census -->
+  <div class="section-heading" style="border-bottom:none;margin-bottom:8px">
+    <h2 style="font-size:1rem;color:var(--muted)">Taint Source Census — 200-Servlet Sample</h2>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr><th>Source API</th><th>Count (200 files)</th><th>Estimated Total (2,740)</th><th>CWE Relevance</th><th>Safe?</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>request.getHeader()</code></td><td>278</td><td>~3,809</td><td>CWE-79, CWE-89, CWE-78, CWE-22</td><td>No — attacker-controlled</td></tr>
+        <tr><td><code>request.getParameter()</code></td><td>122</td><td>~1,671</td><td>CWE-89, CWE-79, CWE-327</td><td>No — attacker-controlled</td></tr>
+        <tr><td><code>request.getCookies()</code></td><td>109</td><td>~1,493</td><td>CWE-89, CWE-614, CWE-501</td><td>No — attacker-controlled</td></tr>
+        <tr><td><code>System.getProperty()</code></td><td>29</td><td>~397</td><td>CWE-330, CWE-327</td><td>Partial — JVM-controlled</td></tr>
+        <tr><td><code>request.getQueryString()</code></td><td>6</td><td>~82</td><td>CWE-89, CWE-79</td><td>No — attacker-controlled</td></tr>
+        <tr><td><code>SeparateClassRequest.getTheValue()</code></td><td>3</td><td>~41</td><td>CWE-89 (TN)</td><td><strong>Yes — returns literal "bar"</strong></td></tr>
+        <tr><td><code>request.getInputStream()</code></td><td>1</td><td>~14</td><td>CWE-89</td><td>No — attacker-controlled</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="color:var(--muted);font-size:.8rem;margin-top:8px">
+    ⚠ Key finding: <code>getHeader()</code> (not <code>getParameter()</code>) is the dominant taint source — estimated ~3,809 header-based injection test cases (39% of corpus).
+  </p>
+
+</section>
+
+<!-- ═══════════════════════════ LICENSE AUDIT ══════════════════════════ -->
+<section id="licenses">
+  <div class="section-heading">
+    <div class="section-icon" style="background:rgba(245,158,11,.12);color:#fde68a">⚖️</div>
+    <h2>License Compliance Audit</h2>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Artifact</th><th>Version</th><th>SPDX License</th><th>Type</th>
+          <th>Copyleft Risk</th><th>Compatible with GPL-2.0?</th><th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><code>benchmark (root)</code></td><td>1.2</td><td><span class="license-tag l-gpl">GPL-2.0-only</span></td><td>Primary</td><td><span class="risk-tag r-copyleft">Strong Copyleft</span></td><td class="status-ok">✔ N/A (root)</td><td>Production</td></tr>
+        <tr><td><code>javaee-api</code></td><td>8.0.1</td><td><span class="license-tag l-cddl">CDDL-1.1</span> / <span class="license-tag l-cddl">GPL-2.0-cp</span></td><td>Provided</td><td><span class="risk-tag r-dual">Dual — provided only</span></td><td class="status-ok">✔ Compatible</td><td>Not bundled</td></tr>
+        <tr><td><code>jaxb-api</code></td><td>2.3.1</td><td><span class="license-tag l-cddl">CDDL-1.1</span> / <span class="license-tag l-cddl">GPL-2.0-cp</span></td><td>Runtime</td><td><span class="risk-tag r-dual">Dual</span></td><td class="status-ok">✔ Compatible</td><td>Active</td></tr>
+        <tr><td><code>jaxb-impl</code></td><td>2.3.9</td><td><span class="license-tag l-bsd">BSD-3-Clause</span></td><td>Runtime</td><td><span class="risk-tag r-permissive">Permissive</span></td><td class="status-ok">✔ Compatible</td><td>Active</td></tr>
+        <tr><td><code>jersey-servlet</code></td><td>1.19.4</td><td><span class="license-tag l-cddl">CDDL-1.1</span> / <span class="license-tag l-cddl">GPL-2.0-cp</span></td><td>Runtime</td><td><span class="risk-tag r-dual">Dual</span></td><td class="status-ok">✔ Compatible</td><td class="status-warn">⚠ EOL 2014</td></tr>
+        <tr><td><code>commons-codec</code></td><td>1.22.1</td><td><span class="license-tag l-apache">Apache-2.0</span></td><td>Runtime</td><td><span class="risk-tag r-permissive">Permissive</span></td><td class="status-ok">✔ Compatible</td><td>Active</td></tr>
+        <tr><td><code>commons-dbcp</code></td><td>1.4</td><td><span class="license-tag l-apache">Apache-2.0</span></td><td>Runtime</td><td><span class="risk-tag r-permissive">Permissive</span></td><td class="status-ok">✔ Compatible</td><td class="status-err">✖ EOL 2013</td></tr>
+        <tr><td><code>commons-io</code></td><td>2.22.0</td><td><span class="license-tag l-apache">Apache-2.0</span></td><td>Runtime</td><td><span class="risk-tag r-permissive">Permissive</span></td><td class="status-ok">✔ Compatible</td><td>Active</td></tr>
+        <tr><td><code>commons-lang</code></td><td>2.6</td><td><span class="license-tag l-apache">Apache-2.0</span></td><td>Runtime</td><td><span class="risk-tag r-permissive">Permissive</span></td><td class="status-ok">✔ Compatible</td><td class="status-err">✖ EOL 2011</td></tr>
+        <tr><td><code>slf4j-reload4j</code></td><td>2.0.19</td><td><span class="license-tag l-mit">MIT</span></td><td>Runtime</td><td><span class="risk-tag r-permissive">Permissive</span></td><td class="status-ok">✔ Compatible</td><td>Active</td></tr>
+        <tr><td><code>api-ldap-model</code></td><td>2.1.7</td><td><span class="license-tag l-apache">Apache-2.0</span></td><td>Runtime</td><td><span class="risk-tag r-permissive">Permissive</span></td><td class="status-ok">✔ Compatible</td><td>Pinned (DIRAPI-433)</td></tr>
+        <tr><td><code>api-ldap-schema-data</code></td><td>2.1.8</td><td><span class="license-tag l-apache">Apache-2.0</span></td><td>Runtime</td><td><span class="risk-tag r-permissive">Permissive</span></td><td class="status-ok">✔ Compatible</td><td>Active</td></tr>
+        <tr><td><code>apacheds-* (16 modules)</code></td><td>2.0.0.AM27</td><td><span class="license-tag l-apache">Apache-2.0</span></td><td>Runtime</td><td><span class="risk-tag r-permissive">Permissive</span></td><td class="status-ok">✔ Compatible</td><td>Active</td></tr>
+        <tr><td><code>httpclient5</code></td><td>5.6.4</td><td><span class="license-tag l-apache">Apache-2.0</span></td><td>Runtime</td><td><span class="risk-tag r-permissive">Permissive</span></td><td class="status-ok">✔ Compatible</td><td>Active</td></tr>
+        <tr><td><code>httpcore5</code></td><td>5.4.3</td><td><span class="license-tag l-apache">Apache-2.0</span></td><td>Runtime</td><td><span class="risk-tag r-permissive">Permissive</span></td><td class="status-ok">✔ Compatible</td><td>Active</td></tr>
+        <tr><td><code>bcprov-jdk15on</code></td><td>1.70</td><td><span class="license-tag l-mit">MIT</span></td><td>Runtime</td><td><span class="risk-tag r-permissive">Permissive</span></td><td class="status-ok">✔ Compatible</td><td class="status-err">✖ CVE-2023-33201</td></tr>
+        <tr style="background:rgba(245,158,11,.04)"><td><code>hibernate-core</code></td><td>3.6.10.Final</td><td><span class="license-tag l-lgpl">LGPL-2.1-only</span></td><td>Runtime</td><td><span class="risk-tag r-weak-copyleft">⚠ Weak Copyleft</span></td><td class="status-warn">⚠ Review required</td><td class="status-err">✖ EOL ~2012</td></tr>
+        <tr style="background:rgba(245,158,11,.04)"><td><code>hibernate-entitymanager</code></td><td>3.6.10.Final</td><td><span class="license-tag l-lgpl">LGPL-2.1-only</span></td><td>Runtime</td><td><span class="risk-tag r-weak-copyleft">⚠ Weak Copyleft</span></td><td class="status-warn">⚠ Review required</td><td class="status-err">✖ EOL ~2012</td></tr>
+        <tr><td><code>hsqldb</code></td><td>2.7.4</td><td><span class="license-tag l-bsd">BSD-3-Clause</span></td><td>Runtime</td><td><span class="risk-tag r-permissive">Permissive</span></td><td class="status-ok">✔ Compatible</td><td>Active</td></tr>
+        <tr><td><code>esapi</code></td><td>2.7.0.0</td><td><span class="license-tag l-bsd">BSD-3-Clause</span></td><td>Runtime</td><td><span class="risk-tag r-permissive">Permissive</span></td><td class="status-ok">✔ Compatible</td><td>Active</td></tr>
+        <tr><td><code>spring-context/jdbc/tx/web/webmvc</code></td><td>5.3.39</td><td><span class="license-tag l-apache">Apache-2.0</span></td><td>Runtime</td><td><span class="risk-tag r-permissive">Permissive</span></td><td class="status-ok">✔ Compatible</td><td class="status-warn">⚠ EOL Nov 2024</td></tr>
+        <tr><td><code>xml-apis</code></td><td>1.4.01</td><td><span class="license-tag l-apache">Apache-2.0</span> / <span class="license-tag l-w3c">W3C</span></td><td>Runtime</td><td><span class="risk-tag r-permissive">Permissive</span></td><td class="status-ok">✔ Compatible</td><td>Active</td></tr>
+        <tr><td><code>jackson-databind</code></td><td>2.22.2</td><td><span class="license-tag l-apache">Apache-2.0</span></td><td>Runtime</td><td><span class="risk-tag r-permissive">Permissive</span></td><td class="status-ok">✔ Compatible</td><td>Active</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div style="margin-top:16px;background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.25);border-radius:8px;padding:14px 18px;font-size:.82rem;color:#fde68a;line-height:1.55">
+    <strong>⚖️ LGPL Copyleft Risk (Hibernate 3.6.x):</strong> LGPL-2.1-only permits use in proprietary software when the LGPL library is <em>linked dynamically</em> and the end-user can replace it. WAR deployment (classpath linking) is generally considered dynamic linking, making this GPL-2.0 compatible under standard legal interpretation. However, any modification of the Hibernate library itself, or static bundling into a shaded JAR, would trigger source disclosure obligations. Formal legal review is recommended before redistributing a derived product. Upgrade path: Hibernate 6.x carries Apache-2.0.
+  </div>
+</section>
+
+<!-- ═══════════════════════════ CWE MAP ════════════════════════════════ -->
+<section id="cwe">
+  <div class="section-heading">
+    <div class="section-icon" style="background:rgba(129,140,248,.12);color:var(--accent2)">🗺️</div>
+    <h2>CWE Vulnerability Category Map — 2,740 Test Vectors</h2>
+  </div>
+
+  <div class="cwe-grid">
+
+    <div class="cwe-card">
+      <div class="cwe-pill"><div class="cnum">CWE-89</div><div class="ctotal">504</div></div>
+      <div class="cwe-detail">
+        <div class="cname">SQL Injection</div>
+        <div class="ccategory">Category: sqli · Folders: sqli-00 through sqli-06</div>
+        <div class="cstats">
+          <span class="cstat cstat-tp">272 True Positive (54%)</span>
+          <span class="cstat cstat-tn">232 True Negative (46%)</span>
+        </div>
+        <div class="mini-bar"><div class="mini-bar-fill" style="width:54%"></div></div>
+        <div style="font-size:.71rem;color:var(--faint);margin-top:5px">Sinks: Statement.executeUpdate · PreparedStatement (partial) · JdbcTemplate · CallableStatement</div>
+      </div>
+    </div>
+
+    <div class="cwe-card">
+      <div class="cwe-pill"><div class="cnum">CWE-79</div><div class="ctotal">455</div></div>
+      <div class="cwe-detail">
+        <div class="cname">Cross-Site Scripting (XSS)</div>
+        <div class="ccategory">Category: xss · Folders: xss-00 through xss-05</div>
+        <div class="cstats">
+          <span class="cstat cstat-tp">246 True Positive (54%)</span>
+          <span class="cstat cstat-tn">209 True Negative (46%)</span>
+        </div>
+        <div class="mini-bar"><div class="mini-bar-fill" style="width:54%"></div></div>
+        <div style="font-size:.71rem;color:var(--faint);margin-top:5px">Sinks: response.getWriter().format/printf/println · X-XSS-Protection: 0 set explicitly</div>
+      </div>
+    </div>
+
+    <div class="cwe-card">
+      <div class="cwe-pill"><div class="cnum">CWE-330</div><div class="ctotal">493</div></div>
+      <div class="cwe-detail">
+        <div class="cname">Use of Insufficiently Random Values</div>
+        <div class="ccategory">Category: weakrand · Folders: weakrand-00 through weakrand-06</div>
+        <div class="cstats">
+          <span class="cstat cstat-tp">218 True Positive (44%)</span>
+          <span class="cstat cstat-tn">275 True Negative (56%)</span>
+        </div>
+        <div class="mini-bar"><div class="mini-bar-fill" style="width:44%"></div></div>
+        <div style="font-size:.71rem;color:var(--faint);margin-top:5px">Sink: new java.util.Random() (193 vuln) vs SecureRandom.getInstance("SHA1PRNG") (275 safe)</div>
+      </div>
+    </div>
+
+    <div class="cwe-card">
+      <div class="cwe-pill"><div class="cnum">CWE-22</div><div class="ctotal">268</div></div>
+      <div class="cwe-detail">
+        <div class="cname">Path Traversal</div>
+        <div class="ccategory">Category: pathtraver · Folders: pathtraver-00 through pathtraver-03</div>
+        <div class="cstats">
+          <span class="cstat cstat-tp">133 True Positive (50%)</span>
+          <span class="cstat cstat-tn">135 True Negative (50%)</span>
+        </div>
+        <div class="mini-bar"><div class="mini-bar-fill" style="width:50%"></div></div>
+        <div style="font-size:.71rem;color:var(--faint);margin-top:5px">Sinks: new FileInputStream(TESTFILES_DIR + param) · FileOutputStream · Files.newInputStream</div>
+      </div>
+    </div>
+
+    <div class="cwe-card">
+      <div class="cwe-pill"><div class="cnum">CWE-78</div><div class="ctotal">251</div></div>
+      <div class="cwe-detail">
+        <div class="cname">OS Command Injection</div>
+        <div class="ccategory">Category: cmdi · Folders: cmdi-00 through cmdi-03</div>
+        <div class="cstats">
+          <span class="cstat cstat-tp">126 True Positive (50%)</span>
+          <span class="cstat cstat-tn">125 True Negative (50%)</span>
+        </div>
+        <div class="mini-bar"><div class="mini-bar-fill" style="width:50%"></div></div>
+        <div style="font-size:.71rem;color:var(--faint);margin-top:5px">Sinks: ProcessBuilder(cmds) (189 instances) · Runtime.exec via getRuntime() (188 instances)</div>
+      </div>
+    </div>
+
+    <div class="cwe-card">
+      <div class="cwe-pill"><div class="cnum">CWE-327</div><div class="ctotal">246</div></div>
+      <div class="cwe-detail">
+        <div class="cname">Use of Broken or Risky Cryptographic Algorithm</div>
+        <div class="ccategory">Category: crypto · Folders: crypto-00 through crypto-03</div>
+        <div class="cstats">
+          <span class="cstat cstat-tp">130 True Positive (53%)</span>
+          <span class="cstat cstat-tn">116 True Negative (47%)</span>
+        </div>
+        <div class="mini-bar"><div class="mini-bar-fill" style="width:53%"></div></div>
+        <div style="font-size:.71rem;color:var(--faint);margin-top:5px">Vuln: DES/CBC(97) · DES/ECB(33) · DESede/ECB(33) · AES/ECB(27) — Safe: AES/GCM(40) · AES/CCM(26)</div>
+      </div>
+    </div>
+
+    <div class="cwe-card">
+      <div class="cwe-pill"><div class="cnum">CWE-328</div><div class="ctotal">236</div></div>
+      <div class="cwe-detail">
+        <div class="cname">Use of Weak Hash</div>
+        <div class="ccategory">Category: hash · Folders: hash-00 through hash-02</div>
+        <div class="cstats">
+          <span class="cstat cstat-tp">129 True Positive (55%)</span>
+          <span class="cstat cstat-tn">107 True Negative (45%)</span>
+        </div>
+        <div class="mini-bar"><div class="mini-bar-fill" style="width:55%"></div></div>
+        <div style="font-size:.71rem;color:var(--faint);margin-top:5px">Vuln: MessageDigest.getInstance("MD5") — Safe: MessageDigest.getInstance("SHA-256")</div>
+      </div>
+    </div>
+
+    <div class="cwe-card">
+      <div class="cwe-pill"><div class="cnum">CWE-501</div><div class="ctotal">126</div></div>
+      <div class="cwe-detail">
+        <div class="cname">Trust Boundary Violation</div>
+        <div class="ccategory">Category: trustbound · Folders: trustbound-00, trustbound-01</div>
+        <div class="cstats">
+          <span class="cstat cstat-tp">83 True Positive (66%)</span>
+          <span class="cstat cstat-tn">43 True Negative (34%)</span>
+        </div>
+        <div class="mini-bar"><div class="mini-bar-fill" style="width:66%"></div></div>
+        <div style="font-size:.71rem;color:var(--faint);margin-top:5px">Sink: request.getSession().setAttribute(param, value) · session.putValue(key, param)</div>
+      </div>
+    </div>
+
+    <div class="cwe-card">
+      <div class="cwe-pill"><div class="cnum">CWE-614</div><div class="ctotal">67</div></div>
+      <div class="cwe-detail">
+        <div class="cname">Sensitive Cookie Without 'Secure' Attribute</div>
+        <div class="ccategory">Category: securecookie · Folder: securecookie-00</div>
+        <div class="cstats">
+          <span class="cstat cstat-tp">36 True Positive (54%)</span>
+          <span class="cstat cstat-tn">31 True Negative (46%)</span>
+        </div>
+        <div class="mini-bar"><div class="mini-bar-fill" style="width:54%"></div></div>
+        <div style="font-size:.71rem;color:var(--faint);margin-top:5px">Vuln: cookie.setSecure(false) — Safe: cookie.setSecure(true) + setHttpOnly(true). Context: sameSiteCookies=strict</div>
+      </div>
+    </div>
+
+    <div class="cwe-card">
+      <div class="cwe-pill"><div class="cnum">CWE-90</div><div class="ctotal">59</div></div>
+      <div class="cwe-detail">
+        <div class="cname">LDAP Injection</div>
+        <div class="ccategory">Category: ldapi · Folder: ldapi-00</div>
+        <div class="cstats">
+          <span class="cstat cstat-tp">27 True Positive (46%)</span>
+          <span class="cstat cstat-tn">32 True Negative (54%)</span>
+        </div>
+        <div class="mini-bar"><div class="mini-bar-fill" style="width:46%"></div></div>
+        <div style="font-size:.71rem;color:var(--faint);margin-top:5px">Sink: DirContext.search(base, filter) with filter = "(&(uid=" + param + "))" — via embedded ApacheDS:10389</div>
+      </div>
+    </div>
+
+    <div class="cwe-card">
+      <div class="cwe-pill"><div class="cnum">CWE-643</div><div class="ctotal">35</div></div>
+      <div class="cwe-detail">
+        <div class="cname">XPath Injection</div>
+        <div class="ccategory">Category: xpathi · Folder: xpathi-00</div>
+        <div class="cstats">
+          <span class="cstat cstat-tp">15 True Positive (43%)</span>
+          <span class="cstat cstat-tn">20 True Negative (57%)</span>
+        </div>
+        <div class="mini-bar"><div class="mini-bar-fill" style="width:43%"></div></div>
+        <div style="font-size:.71rem;color:var(--faint);margin-top:5px">Sink: XPath.compile(expression).evaluate(xmlDocument) — expression built from user-controlled input</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════ CHARTS ═════════════════════════════════ -->
+<section id="charts">
+  <div class="section-heading">
+    <div class="section-icon" style="background:rgba(52,211,153,.1);color:var(--accent3)">📈</div>
+    <h2>Visual Analytics</h2>
+  </div>
+
+  <div class="charts-row">
+
+    <!-- Donut: License Distribution -->
+    <div class="chart-card">
+      <div class="chart-title">License Distribution (by dependency count)</div>
+      <div class="donut-wrap">
+        <div class="donut">
+          <svg width="140" height="140" viewBox="0 0 140 140">
+            <!-- Total 27 packages. Apache-2.0=14(52%), MIT=2(7%), BSD-3=3(11%), LGPL-2.1=2(7%), CDDL=4(15%), W3C=1(4%) -->
+            <!-- circumference = 2πr, r=50 => 314.16 -->
+            <!-- Apache: 52% = 163.4, MIT: 7% = 22.0, BSD: 11% = 34.6, LGPL: 7% = 22.0, CDDL: 15% = 47.1, W3C: 4% = 12.6 -->
+            <circle cx="70" cy="70" r="50" fill="none" stroke="#22c55e" stroke-width="22"
+              stroke-dasharray="163.4 314.16" stroke-dashoffset="0"/>
+            <circle cx="70" cy="70" r="50" fill="none" stroke="#06b6d4" stroke-width="22"
+              stroke-dasharray="22.0 314.16" stroke-dashoffset="-163.4"/>
+            <circle cx="70" cy="70" r="50" fill="none" stroke="#a78bfa" stroke-width="22"
+              stroke-dasharray="34.6 314.16" stroke-dashoffset="-185.4"/>
+            <circle cx="70" cy="70" r="50" fill="none" stroke="#f59e0b" stroke-width="22"
+              stroke-dasharray="22.0 314.16" stroke-dashoffset="-220.0"/>
+            <circle cx="70" cy="70" r="50" fill="none" stroke="#94a3b8" stroke-width="22"
+              stroke-dasharray="47.1 314.16" stroke-dashoffset="-242.0"/>
+            <circle cx="70" cy="70" r="50" fill="none" stroke="#818cf8" stroke-width="22"
+              stroke-dasharray="12.6 314.16" stroke-dashoffset="-289.1"/>
+          </svg>
+          <div class="donut-center">
+            <div class="dc-num">27</div>
+            <div class="dc-lbl">packages</div>
+          </div>
+        </div>
+        <div class="legend">
+          <div class="legend-row"><div class="legend-dot" style="background:#22c55e"></div><div class="legend-name">Apache-2.0</div><div class="legend-pct">14 (52%)</div></div>
+          <div class="legend-row"><div class="legend-dot" style="background:#94a3b8"></div><div class="legend-name">CDDL-1.1 / GPL-cp</div><div class="legend-pct">4 (15%)</div></div>
+          <div class="legend-row"><div class="legend-dot" style="background:#a78bfa"></div><div class="legend-name">BSD-3-Clause</div><div class="legend-pct">3 (11%)</div></div>
+          <div class="legend-row"><div class="legend-dot" style="background:#f59e0b"></div><div class="legend-name">LGPL-2.1-only ⚠</div><div class="legend-pct">2 (7%)</div></div>
+          <div class="legend-row"><div class="legend-dot" style="background:#06b6d4"></div><div class="legend-name">MIT</div><div class="legend-pct">2 (7%)</div></div>
+          <div class="legend-row"><div class="legend-dot" style="background:#818cf8"></div><div class="legend-name">W3C</div><div class="legend-pct">1 (4%)</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Donut: Risk Severity -->
+    <div class="chart-card">
+      <div class="chart-title">Risk Finding Severity Distribution</div>
+      <div class="donut-wrap">
+        <div class="donut">
+          <svg width="140" height="140" viewBox="0 0 140 140">
+            <!-- Critical=2(14%), High=4(29%), Medium=5(36%), Low/Info=3(21%) -->
+            <!-- circ=314.16 | Crit=44.0, High=91.1, Med=113.1, Low=66.0 -->
+            <circle cx="70" cy="70" r="50" fill="none" stroke="#f43f5e" stroke-width="22"
+              stroke-dasharray="44.0 314.16" stroke-dashoffset="0"/>
+            <circle cx="70" cy="70" r="50" fill="none" stroke="#fb923c" stroke-width="22"
+              stroke-dasharray="91.1 314.16" stroke-dashoffset="-44.0"/>
+            <circle cx="70" cy="70" r="50" fill="none" stroke="#fbbf24" stroke-width="22"
+              stroke-dasharray="113.1 314.16" stroke-dashoffset="-135.1"/>
+            <circle cx="70" cy="70" r="50" fill="none" stroke="#4ade80" stroke-width="22"
+              stroke-dasharray="66.0 314.16" stroke-dashoffset="-248.2"/>
+          </svg>
+          <div class="donut-center">
+            <div class="dc-num">14</div>
+            <div class="dc-lbl">findings</div>
+          </div>
+        </div>
+        <div class="legend">
+          <div class="legend-row"><div class="legend-dot" style="background:#f43f5e"></div><div class="legend-name">Critical</div><div class="legend-pct">2 (14%)</div></div>
+          <div class="legend-row"><div class="legend-dot" style="background:#fb923c"></div><div class="legend-name">High</div><div class="legend-pct">4 (29%)</div></div>
+          <div class="legend-row"><div class="legend-dot" style="background:#fbbf24"></div><div class="legend-name">Medium</div><div class="legend-pct">5 (36%)</div></div>
+          <div class="legend-row"><div class="legend-dot" style="background:#4ade80"></div><div class="legend-name">Low / Info</div><div class="legend-pct">3 (21%)</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bar: CWE test-case volume -->
+    <div class="chart-card" style="grid-column:1/-1">
+      <div class="chart-title">CWE Test-Case Volume (True Positive vs True Negative)</div>
+      <div class="stacked-rows">
+        <div style="display:grid;grid-template-columns:110px 1fr 80px;gap:8px;margin-bottom:4px">
+          <div style="font-size:.68rem;color:var(--faint);text-align:right">CWE</div>
+          <div style="display:flex;gap:8px;font-size:.68rem;color:var(--faint);padding-left:2px">
+            <span style="color:#f43f5e">■</span> True Positive (Vulnerable)&nbsp;&nbsp;
+            <span style="color:#4ade80">■</span> True Negative (Safe)
+          </div>
+          <div style="font-size:.68rem;color:var(--faint);text-align:right">Total</div>
+        </div>
+        <!-- CWE-89 sqli 504 TP=272 TN=232 -->
+        <div class="stacked-row">
+          <div class="stacked-label">CWE-89 SQLi</div>
+          <div class="stacked-track" style="height:20px">
+            <div class="stacked-tp" style="width:54%"></div>
+            <div class="stacked-tn" style="width:46%"></div>
+          </div>
+          <div class="stacked-val">504</div>
+        </div>
+        <!-- CWE-330 weakrand 493 TP=218 TN=275 -->
+        <div class="stacked-row">
+          <div class="stacked-label">CWE-330 WeakRand</div>
+          <div class="stacked-track" style="height:20px">
+            <div class="stacked-tp" style="width:44%"></div>
+            <div class="stacked-tn" style="width:56%"></div>
+          </div>
+          <div class="stacked-val">493</div>
+        </div>
+        <!-- CWE-79 xss 455 TP=246 TN=209 -->
+        <div class="stacked-row">
+          <div class="stacked-label">CWE-79 XSS</div>
+          <div class="stacked-track" style="height:20px">
+            <div class="stacked-tp" style="width:54%"></div>
+            <div class="stacked-tn" style="width:46%"></div>
+          </div>
+          <div class="stacked-val">455</div>
+        </div>
+        <!-- CWE-22 pathtraver 268 TP=133 TN=135 -->
+        <div class="stacked-row">
+          <div class="stacked-label">CWE-22 PathTraver</div>
+          <div class="stacked-track" style="height:20px">
+            <div class="stacked-tp" style="width:50%"></div>
+            <div class="stacked-tn" style="width:50%"></div>
+          </div>
+          <div class="stacked-val">268</div>
+        </div>
+        <!-- CWE-78 cmdi 251 TP=126 TN=125 -->
+        <div class="stacked-row">
+          <div class="stacked-label">CWE-78 CmdI</div>
+          <div class="stacked-track" style="height:20px">
+            <div class="stacked-tp" style="width:50%"></div>
+            <div class="stacked-tn" style="width:50%"></div>
+          </div>
+          <div class="stacked-val">251</div>
+        </div>
+        <!-- CWE-327 crypto 246 TP=130 TN=116 -->
+        <div class="stacked-row">
+          <div class="stacked-label">CWE-327 Crypto</div>
+          <div class="stacked-track" style="height:20px">
+            <div class="stacked-tp" style="width:53%"></div>
+            <div class="stacked-tn" style="width:47%"></div>
+          </div>
+          <div class="stacked-val">246</div>
+        </div>
+        <!-- CWE-328 hash 236 TP=129 TN=107 -->
+        <div class="stacked-row">
+          <div class="stacked-label">CWE-328 Hash</div>
+          <div class="stacked-track" style="height:20px">
+            <div class="stacked-tp" style="width:55%"></div>
+            <div class="stacked-tn" style="width:45%"></div>
+          </div>
+          <div class="stacked-val">236</div>
+        </div>
+        <!-- CWE-501 trustbound 126 TP=83 TN=43 -->
+        <div class="stacked-row">
+          <div class="stacked-label">CWE-501 TrustBound</div>
+          <div class="stacked-track" style="height:20px">
+            <div class="stacked-tp" style="width:66%"></div>
+            <div class="stacked-tn" style="width:34%"></div>
+          </div>
+          <div class="stacked-val">126</div>
+        </div>
+        <!-- CWE-614 securecookie 67 TP=36 TN=31 -->
+        <div class="stacked-row">
+          <div class="stacked-label">CWE-614 SecureCookie</div>
+          <div class="stacked-track" style="height:20px">
+            <div class="stacked-tp" style="width:54%"></div>
+            <div class="stacked-tn" style="width:46%"></div>
+          </div>
+          <div class="stacked-val">67</div>
+        </div>
+        <!-- CWE-90 ldapi 59 TP=27 TN=32 -->
+        <div class="stacked-row">
+          <div class="stacked-label">CWE-90 LDAPi</div>
+          <div class="stacked-track" style="height:20px">
+            <div class="stacked-tp" style="width:46%"></div>
+            <div class="stacked-tn" style="width:54%"></div>
+          </div>
+          <div class="stacked-val">59</div>
+        </div>
+        <!-- CWE-643 xpathi 35 TP=15 TN=20 -->
+        <div class="stacked-row">
+          <div class="stacked-label">CWE-643 XPathI</div>
+          <div class="stacked-track" style="height:20px">
+            <div class="stacked-tp" style="width:43%"></div>
+            <div class="stacked-tn" style="width:57%"></div>
+          </div>
+          <div class="stacked-val">35</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bar: Dependency age / EOL risk -->
+    <div class="chart-card">
+      <div class="chart-title">Dependency Maintenance Status</div>
+      <div class="bar-chart">
+        <div class="bar-row">
+          <div class="bar-label" style="text-align:right;font-size:.72rem">Active &amp; Current</div>
+          <div class="bar-track"><div class="bar-fill" style="background:#22c55e;width:63%"></div></div>
+          <div class="bar-val" style="color:#86efac">17 (63%)</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label" style="text-align:right;font-size:.72rem">EOL or Approaching</div>
+          <div class="bar-track"><div class="bar-fill" style="background:#f59e0b;width:22%"></div></div>
+          <div class="bar-val" style="color:#fde68a">6 (22%)</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label" style="text-align:right;font-size:.72rem">Has Known CVE</div>
+          <div class="bar-track"><div class="bar-fill" style="background:#f43f5e;width:4%"></div></div>
+          <div class="bar-val" style="color:#fda4af">1 (4%)</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label" style="text-align:right;font-size:.72rem">Pinned / Constrained</div>
+          <div class="bar-track"><div class="bar-fill" style="background:#818cf8;width:11%"></div></div>
+          <div class="bar-val" style="color:#c7d2fe">3 (11%)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bar: SQL injection sink breakdown -->
+    <div class="chart-card">
+      <div class="chart-title">SQL Injection Sink API Breakdown (504 cases)</div>
+      <div class="bar-chart">
+        <div class="bar-row">
+          <div class="bar-label">Statement.exec*</div>
+          <div class="bar-track"><div class="bar-fill" style="background:var(--r1);width:35%"></div></div>
+          <div class="bar-val">178</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">JdbcTemplate.*</div>
+          <div class="bar-track"><div class="bar-fill" style="background:var(--r2);width:34%"></div></div>
+          <div class="bar-val">172</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">prepareStatement</div>
+          <div class="bar-track"><div class="bar-fill" style="background:var(--r3);width:30%"></div></div>
+          <div class="bar-val">154</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════ SBOM TABLE ════════════════════════════ -->
+<section id="sbom-table">
+  <div class="section-heading">
+    <div class="section-icon" style="background:rgba(56,189,248,.1);color:var(--accent)">📦</div>
+    <h2>SBOM — Dependency Inventory (SPDX 2.3)</h2>
+  </div>
+  <p style="font-size:.82rem;color:var(--muted);margin-bottom:16px">Full SPDX 2.3 JSON: <code>output/sbom.spdx.json</code> · Document namespace: <code>https://owasp.org/www-project-benchmark/sbom/benchmark-1.2-2025</code></p>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr><th>#</th><th>SPDX ID</th><th>Artifact</th><th>Version</th><th>License (Concluded)</th><th>PURL</th><th>Notes</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>1</td><td><code>SPDXRef-Package-benchmark</code></td><td>benchmark</td><td>1.2</td><td><span class="license-tag l-gpl">GPL-2.0-only</span></td><td><code>pkg:maven/org.owasp/benchmark@1.2</code></td><td>Root WAR artifact</td></tr>
+        <tr><td>2</td><td><code>SPDXRef-javaee-api</code></td><td>javaee-api</td><td>8.0.1</td><td><span class="license-tag l-cddl">CDDL-1.1 | GPL-2.0-cp</span></td><td><code>pkg:maven/javax/javaee-api@8.0.1</code></td><td>scope=provided</td></tr>
+        <tr><td>3</td><td><code>SPDXRef-jaxb-api</code></td><td>jaxb-api</td><td>2.3.1</td><td><span class="license-tag l-cddl">CDDL-1.1 | GPL-2.0-cp</span></td><td><code>pkg:maven/javax.xml.bind/jaxb-api@2.3.1</code></td><td>Java 11+ compat</td></tr>
+        <tr><td>4</td><td><code>SPDXRef-jaxb-impl</code></td><td>jaxb-impl</td><td>2.3.9</td><td><span class="license-tag l-bsd">BSD-3-Clause</span></td><td><code>pkg:maven/com.sun.xml.bind/jaxb-impl@2.3.9</code></td><td></td></tr>
+        <tr><td>5</td><td><code>SPDXRef-jersey-servlet</code></td><td>jersey-servlet</td><td>1.19.4</td><td><span class="license-tag l-cddl">CDDL-1.1 | GPL-2.0-cp</span></td><td><code>pkg:maven/com.sun.jersey/jersey-servlet@1.19.4</code></td><td class="status-err">EOL 2014</td></tr>
+        <tr><td>6</td><td><code>SPDXRef-commons-codec</code></td><td>commons-codec</td><td>1.22.1</td><td><span class="license-tag l-apache">Apache-2.0</span></td><td><code>pkg:maven/commons-codec/commons-codec@1.22.1</code></td><td></td></tr>
+        <tr><td>7</td><td><code>SPDXRef-commons-dbcp</code></td><td>commons-dbcp</td><td>1.4</td><td><span class="license-tag l-apache">Apache-2.0</span></td><td><code>pkg:maven/commons-dbcp/commons-dbcp@1.4</code></td><td class="status-err">EOL 2013</td></tr>
+        <tr><td>8</td><td><code>SPDXRef-commons-io</code></td><td>commons-io</td><td>2.22.0</td><td><span class="license-tag l-apache">Apache-2.0</span></td><td><code>pkg:maven/commons-io/commons-io@2.22.0</code></td><td></td></tr>
+        <tr><td>9</td><td><code>SPDXRef-commons-lang</code></td><td>commons-lang</td><td>2.6</td><td><span class="license-tag l-apache">Apache-2.0</span></td><td><code>pkg:maven/commons-lang/commons-lang@2.6</code></td><td class="status-err">EOL 2011</td></tr>
+        <tr><td>10</td><td><code>SPDXRef-slf4j-reload4j</code></td><td>slf4j-reload4j</td><td>2.0.19</td><td><span class="license-tag l-mit">MIT</span></td><td><code>pkg:maven/org.slf4j/slf4j-reload4j@2.0.19</code></td><td></td></tr>
+        <tr><td>11</td><td><code>SPDXRef-api-ldap-model</code></td><td>api-ldap-model</td><td>2.1.7</td><td><span class="license-tag l-apache">Apache-2.0</span></td><td><code>pkg:maven/org.apache.directory.api/api-ldap-model@2.1.7</code></td><td>Pinned: DIRAPI-433</td></tr>
+        <tr><td>12</td><td><code>SPDXRef-api-ldap-schema-data</code></td><td>api-ldap-schema-data</td><td>2.1.8</td><td><span class="license-tag l-apache">Apache-2.0</span></td><td><code>pkg:maven/org.apache.directory.api/api-ldap-schema-data@2.1.8</code></td><td></td></tr>
+        <tr><td>13</td><td><code>SPDXRef-apacheds-bundle</code></td><td>apacheds (×16 modules)</td><td>2.0.0.AM27</td><td><span class="license-tag l-apache">Apache-2.0</span></td><td><code>pkg:maven/org.apache.directory.server/apacheds-core@2.0.0.AM27</code></td><td>Embedded LDAP</td></tr>
+        <tr><td>14</td><td><code>SPDXRef-httpclient5</code></td><td>httpclient5</td><td>5.6.4</td><td><span class="license-tag l-apache">Apache-2.0</span></td><td><code>pkg:maven/org.apache.httpcomponents.client5/httpclient5@5.6.4</code></td><td></td></tr>
+        <tr><td>15</td><td><code>SPDXRef-httpcore5</code></td><td>httpcore5</td><td>5.4.3</td><td><span class="license-tag l-apache">Apache-2.0</span></td><td><code>pkg:maven/org.apache.httpcomponents.core5/httpcore5@5.4.3</code></td><td></td></tr>
+        <tr><td>16</td><td><code>SPDXRef-bcprov-jdk15on</code></td><td>bcprov-jdk15on</td><td>1.70</td><td><span class="license-tag l-mit">MIT</span></td><td><code>pkg:maven/org.bouncycastle/bcprov-jdk15on@1.70</code></td><td class="status-err">CVE-2023-33201</td></tr>
+        <tr style="background:rgba(245,158,11,.03)"><td>17</td><td><code>SPDXRef-hibernate-core</code></td><td>hibernate-core</td><td>3.6.10.Final</td><td><span class="license-tag l-lgpl">LGPL-2.1-only</span></td><td><code>pkg:maven/org.hibernate/hibernate-core@3.6.10.Final</code></td><td class="status-err">EOL; Copyleft</td></tr>
+        <tr style="background:rgba(245,158,11,.03)"><td>18</td><td><code>SPDXRef-hibernate-entitymanager</code></td><td>hibernate-entitymanager</td><td>3.6.10.Final</td><td><span class="license-tag l-lgpl">LGPL-2.1-only</span></td><td><code>pkg:maven/org.hibernate/hibernate-entitymanager@3.6.10.Final</code></td><td class="status-err">EOL; Copyleft</td></tr>
+        <tr><td>19</td><td><code>SPDXRef-hsqldb</code></td><td>hsqldb</td><td>2.7.4</td><td><span class="license-tag l-bsd">BSD-3-Clause</span></td><td><code>pkg:maven/org.hsqldb/hsqldb@2.7.4</code></td><td>Embedded RDBMS</td></tr>
+        <tr><td>20</td><td><code>SPDXRef-esapi</code></td><td>esapi</td><td>2.7.0.0</td><td><span class="license-tag l-bsd">BSD-3-Clause</span></td><td><code>pkg:maven/org.owasp.esapi/esapi@2.7.0.0</code></td><td>Output encoding</td></tr>
+        <tr><td>21</td><td><code>SPDXRef-spring-context</code></td><td>spring-context</td><td>5.3.39</td><td><span class="license-tag l-apache">Apache-2.0</span></td><td><code>pkg:maven/org.springframework/spring-context@5.3.39</code></td><td class="status-warn">EOL Nov 2024</td></tr>
+        <tr><td>22</td><td><code>SPDXRef-spring-jdbc</code></td><td>spring-jdbc</td><td>5.3.39</td><td><span class="license-tag l-apache">Apache-2.0</span></td><td><code>pkg:maven/org.springframework/spring-jdbc@5.3.39</code></td><td class="status-warn">EOL Nov 2024</td></tr>
+        <tr><td>23</td><td><code>SPDXRef-spring-tx</code></td><td>spring-tx</td><td>5.3.39</td><td><span class="license-tag l-apache">Apache-2.0</span></td><td><code>pkg:maven/org.springframework/spring-tx@5.3.39</code></td><td class="status-warn">EOL Nov 2024</td></tr>
+        <tr><td>24</td><td><code>SPDXRef-spring-web</code></td><td>spring-web</td><td>5.3.39</td><td><span class="license-tag l-apache">Apache-2.0</span></td><td><code>pkg:maven/org.springframework/spring-web@5.3.39</code></td><td class="status-warn">EOL Nov 2024</td></tr>
+        <tr><td>25</td><td><code>SPDXRef-spring-webmvc</code></td><td>spring-webmvc</td><td>5.3.39</td><td><span class="license-tag l-apache">Apache-2.0</span></td><td><code>pkg:maven/org.springframework/spring-webmvc@5.3.39</code></td><td class="status-warn">EOL Nov 2024</td></tr>
+        <tr><td>26</td><td><code>SPDXRef-xml-apis</code></td><td>xml-apis</td><td>1.4.01</td><td><span class="license-tag l-apache">Apache-2.0</span> / <span class="license-tag l-w3c">W3C</span></td><td><code>pkg:maven/xml-apis/xml-apis@1.4.01</code></td><td></td></tr>
+        <tr><td>27</td><td><code>SPDXRef-jackson-databind</code></td><td>jackson-databind</td><td>2.22.2</td><td><span class="license-tag l-apache">Apache-2.0</span></td><td><code>pkg:maven/com.fasterxml.jackson.core/jackson-databind@2.22.2</code></td><td></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+</div><!-- /page -->
+
+<footer>
+  CIDE General Subagent Security Audit · OWASP Benchmark Java v1.2 · GPL-2.0-only ·
+  Source: <code>target-repo/pom.xml</code> + <code>src/main/java/</code> + <code>expectedresults-1.2.csv</code> ·
+  SBOM: <code>output/sbom.spdx.json</code> (SPDX 2.3) ·
+  All visualisations rendered in pure CSS/HTML — no external dependencies
+</footer>
+
+</body>
+</html>
