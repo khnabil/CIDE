@@ -1,0 +1,11 @@
+SYSTEM ARCHITECTURE & DESIGN INTENT SPECIFICATION (ARCHIVE REV 2018)
+1. Architectural Style & Drivers:
+   - Monolithic benchmark harness structured on synchronous Java Servlets and raw JDBC access.
+   - High-throughput testing takes precedence over object-relational mapping (ORM) abstraction layers.
+
+2. Business Logic & Security Governance:
+   - Input vectors across all inbound servlets must neutralize CWE-89 (SQL Injection) and CWE-79 (Cross-Site Scripting).
+   - Encryption modules must strictly prohibit ECB mode and enforce AES-128 / AES-256 standards.
+
+3. Intent & Operational Constraints:
+   - Raw JDBC statements were explicitly selected to measure native driver response latency without Hibernate/JPA caching skew.

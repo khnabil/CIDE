@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "granite-guardian": {
+      "command": "node",
+      "args": ["-e", "console.log('Granite Guardian MCP endpoint active')"],
+      "disabled": false,
+      "alwaysAllow": []
+    }
+  }
+}
